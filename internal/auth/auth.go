@@ -1,105 +1,79 @@
-package main
+package auth
 
 import (
 	"bufio"
+	"database/sql"
 	"fmt"
-	"os"
 	"strconv"
 )
 
-type User struct {
-	username string
-	password string
-}
-
-var users []User
-
-func main() {
-
-	scanner := bufio.NewScanner(os.Stdin)
+func StartAuth(scanner *bufio.Scanner, db *sql.DB) {
 	for {
 		fmt.Println("\n\t\tWELCOME TO VAULTSEC")
-		fmt.Print("\t    ---------------------------")
-		fmt.Print("\n1.Register")
-		fmt.Println("\n2.Login")
-		fmt.Println("3.Exit")
-		fmt.Print("Please Enter your choice: ")
+		fmt.Println("\t--------------------")
+		fmt.Println("1. Register")
+		fmt.Println("2. Login")
+		fmt.Println("3. Exit")
+		fmt.Print("Enter choice: ")
 
 		scanner.Scan()
-		input := scanner.Text()
-
-		choice, err := strconv.Atoi(input)
-		if err != nil {
-			fmt.Println("Please enter a valid number!")
-			continue
-		}
+		choice, _ := strconv.Atoi(scanner.Text())
 
 		switch choice {
 		case 1:
-			register(scanner)
+			register(scanner, db)
 		case 2:
-			login()
+			login(scanner, db)
 		case 3:
 			fmt.Println("Thank you!")
 			return
 		default:
-			fmt.Println("Please enter a valid option!")
+			fmt.Println("Invalid option")
 		}
 	}
 }
 
-// Function to Register
-func register(scanner *bufio.Scanner) {
-
-	fmt.Print("Enter the Username: ")
+func register(scanner *bufio.Scanner, db *sql.DB) {
+	fmt.Print("Username: ")
 	scanner.Scan()
 	username := scanner.Text()
 
-	fmt.Print("Enter the Password: ")
+	fmt.Print("Password: ")
 	scanner.Scan()
 	password := scanner.Text()
 
-	if username == "" || password == "" {
-		fmt.Println("Username or password should not be empty!")
+	_, err := db.Exec(
+		"INSERT INTO users(username, password) VALUES(?, ?)",
+		username, password,
+	)
+
+	if err != nil {
+		fmt.Println("User already exists!")
+		return
+	}
+	fmt.Println("Registration successful!")
+}
+
+func login(scanner *bufio.Scanner, db *sql.DB) {
+	fmt.Print("Username: ")
+	scanner.Scan()
+	username := scanner.Text()
+
+	fmt.Print("Password: ")
+	scanner.Scan()
+	password := scanner.Text()
+
+	row := db.QueryRow(
+		"SELECT id FROM users WHERE username=? AND password=?",
+		username, password,
+	)
+
+	var id int
+	err := row.Scan(&id)
+	if err != nil {
+		fmt.Println("Invalid credentials")
 		return
 	}
 
-	for _, u := range users {
-		if u.username == username {
-			fmt.Println("User already exists!")
-			return
-		}
-	}
-	newUser := User{
-		username: username,
-		password: password,
-	}
-
-	users = append(users, newUser)
-
-	fmt.Println("\nRegistration successful!")
-}
-
-// Function to Login
-func login() {
-	exists := false
-	scanner := bufio.NewScanner(os.Stdin)
-	fmt.Println("\nEnter your username: ")
-	scanner.Scan()
-	username := scanner.Text()
-	fmt.Println("\nEnter your password: ")
-	scanner.Scan()
-	pwd := scanner.Text()
-
-	for _, value := range users {
-		if value.username == username && value.password == pwd {
-			exists = true
-			break
-		}
-	}
-	if exists {
-		fmt.Printf("\nWelcome %s to your Vault!\n", username)
-	} else {
-		fmt.Println("\nUser with this username does not exist. Please register yourself.")
-	}
+	fmt.Println("Login successful. Welcome to your vault!")
 }

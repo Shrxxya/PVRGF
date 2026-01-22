@@ -1,0 +1,9 @@
+# Go build files
+*.exe
+*.out
+
+# SQLite database
+vault.db
+
+# VS Code
+.vscode/
