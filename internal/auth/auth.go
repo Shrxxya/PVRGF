@@ -9,7 +9,7 @@ import (
 
 func StartAuth(scanner *bufio.Scanner, db *sql.DB) {
 	for {
-		fmt.Println("\n\t\tWELCOME TO VAULTSEC")
+		fmt.Println("\n\tWELCOME TO VAULTSEC")
 		fmt.Println("\t--------------------")
 		fmt.Println("1. Register")
 		fmt.Println("2. Login")

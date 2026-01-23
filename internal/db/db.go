@@ -26,4 +26,7 @@ func InitDB() *sql.DB {
 	}
 
 	return db
-}
+} //zero knowledge proof
+//integratoin with websites to fetch their specific pwd validation regex
+//openpassword - open source vault
+//user pwd encryption - no compromise
