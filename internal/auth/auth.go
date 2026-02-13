@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"strconv"
+
+	"PVRGF/internal/menu"
 )
 
 func StartAuth(scanner *bufio.Scanner, db *sql.DB) {
@@ -23,7 +25,10 @@ func StartAuth(scanner *bufio.Scanner, db *sql.DB) {
 		case 1:
 			register(scanner, db)
 		case 2:
-			login(scanner, db)
+			userID, success := login(scanner, db)
+			if success {
+				menu.ShowPostLoginMenu(scanner, db, userID)
+			}
 		case 3:
 			fmt.Println("Thank you!")
 			return
@@ -54,7 +59,7 @@ func register(scanner *bufio.Scanner, db *sql.DB) {
 	fmt.Println("Registration successful!")
 }
 
-func login(scanner *bufio.Scanner, db *sql.DB) {
+func login(scanner *bufio.Scanner, db *sql.DB) (int, bool) {
 	fmt.Print("Username: ")
 	scanner.Scan()
 	username := scanner.Text()
@@ -72,8 +77,9 @@ func login(scanner *bufio.Scanner, db *sql.DB) {
 	err := row.Scan(&id)
 	if err != nil {
 		fmt.Println("Invalid credentials")
-		return
+		return 0, false
 	}
 
 	fmt.Println("Login successful. Welcome to your vault!")
+	return id, true
 }
