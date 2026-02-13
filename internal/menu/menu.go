@@ -60,16 +60,20 @@ func showAddPasswordMenu(scanner *bufio.Scanner, db *sql.DB, userID int) {
 		scanner.Scan()
 		choice := scanner.Text()
 
+		fmt.Print("Enter label (Gmail/ Instagram/ Linkedin/ Facebook): ")
+		scanner.Scan()
+		label := scanner.Text()
+
 		switch choice {
 		case "1":
 			password := generateRandomPassword()
 			fmt.Println("Generated Password:", password)
-			savePassword(scanner, db, userID, password)
+			savePassword(db, userID, password, label)
 		case "2":
 			fmt.Print("Enter your password: ")
 			scanner.Scan()
 			password := scanner.Text()
-			savePassword(scanner, db, userID, password)
+			savePassword(db, userID, password, label)
 		case "3":
 			return
 		default:
@@ -78,11 +82,7 @@ func showAddPasswordMenu(scanner *bufio.Scanner, db *sql.DB, userID int) {
 	}
 }
 
-func savePassword(scanner *bufio.Scanner, db *sql.DB, userID int, password string) {
-	fmt.Print("Enter label (e.g., Gmail, Instagram): ")
-	scanner.Scan()
-	label := scanner.Text()
-
+func savePassword(db *sql.DB, userID int, password string, label string) {
 	_, err := db.Exec(
 		"INSERT INTO passwords(user_id, label, password, created_at) VALUES(?, ?, ?, ?)",
 		userID, label, password, time.Now(),
