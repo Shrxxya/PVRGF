@@ -7,7 +7,10 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"strings"
 	"time"
+
+	"PVRGF/internal/rules"
 )
 
 var (
@@ -60,24 +63,59 @@ func showAddPasswordMenu(scanner *bufio.Scanner, db *sql.DB, userID int) {
 		scanner.Scan()
 		choice := scanner.Text()
 
-		fmt.Print("Enter label (Gmail/ Instagram/ Linkedin/ Facebook): ")
+		if choice == "3" {
+			return
+		}
+
+		if choice != "1" && choice != "2" {
+			fmt.Println("Invalid option")
+			continue
+		}
+
+		fmt.Print("Enter Label (Gmail/Linkedin/Facebook/Instagram): ")
 		scanner.Scan()
-		label := scanner.Text()
+		label := strings.ToLower(scanner.Text())
+
+		criteria, err := rules.LoadCriteria(label)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
 
 		switch choice {
+
 		case "1":
-			password := generateRandomPassword()
+			password := generateWithCriteria(criteria)
+
+			if !validatePassword(password, criteria) {
+				fmt.Println("Generated password does not meet criteria. Try again.")
+				continue
+			}
+
 			fmt.Println("Generated Password:", password)
 			savePassword(db, userID, password, label)
+
 		case "2":
+			fmt.Println("\nWebsite Password Requirements:")
+			fmt.Println("---------------------------------")
+			fmt.Println("Minimum Length      :", criteria.MinLength)
+			fmt.Println("Minimum Uppercase   :", criteria.MinUppercase)
+			fmt.Println("Minimum Lowercase   :", criteria.MinLowercase)
+			fmt.Println("Minimum Numbers     :", criteria.MinNumbers)
+			fmt.Println("Minimum Special     :", criteria.MinSpecial)
+			fmt.Println("Allowed Special Chars:", criteria.AllowedSpecial)
+			fmt.Println("---------------------------------")
+
 			fmt.Print("Enter your password: ")
 			scanner.Scan()
 			password := scanner.Text()
+
+			if !validatePassword(password, criteria) {
+				fmt.Println("\nPassword does NOT match website criteria!")
+				continue
+			}
+
 			savePassword(db, userID, password, label)
-		case "3":
-			return
-		default:
-			fmt.Println("Invalid option")
 		}
 	}
 }
@@ -169,8 +207,62 @@ func shuffleString(s string) string {
 		j := int(jBig.Int64())
 		runes[i], runes[j] = runes[j], runes[i]
 	}
-	fmt.Println("-=-==-=--=-=-=--=-==")
-	fmt.Println(string(runes))
 
 	return string(runes)
+}
+
+func generateWithCriteria(c *rules.Criteria) string {
+	password := ""
+
+	for i := 0; i < c.MinUppercase; i++ {
+		password += randomChar(upperCharSet)
+	}
+
+	for i := 0; i < c.MinLowercase; i++ {
+		password += randomChar(lowerCharSet)
+	}
+
+	for i := 0; i < c.MinNumbers; i++ {
+		password += randomChar(numberCharSet)
+	}
+
+	for i := 0; i < c.MinSpecial; i++ {
+		password += randomChar(c.AllowedSpecial)
+	}
+
+	allChars := lowerCharSet + upperCharSet + numberCharSet + c.AllowedSpecial
+	remaining := c.MinLength - len(password)
+
+	for i := 0; i < remaining; i++ {
+		password += randomChar(allChars)
+	}
+
+	return shuffleString(password)
+}
+
+func validatePassword(pass string, c *rules.Criteria) bool {
+
+	if len(pass) < c.MinLength {
+		return false
+	}
+
+	var upper, lower, number, special int
+
+	for _, ch := range pass {
+		switch {
+		case strings.ContainsRune(upperCharSet, ch):
+			upper++
+		case strings.ContainsRune(lowerCharSet, ch):
+			lower++
+		case strings.ContainsRune(numberCharSet, ch):
+			number++
+		case strings.ContainsRune(c.AllowedSpecial, ch):
+			special++
+		}
+	}
+
+	return upper >= c.MinUppercase &&
+		lower >= c.MinLowercase &&
+		number >= c.MinNumbers &&
+		special >= c.MinSpecial
 }
