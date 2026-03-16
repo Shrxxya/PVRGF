@@ -6,8 +6,23 @@ import (
 
 	_ "modernc.org/sqlite"
 )
+type VaultStorage interface {
+	Close() error
+	GetDB() *sql.DB
+}
+type SQLStorage struct {
+	db *sql.DB
+}
 
-func InitDB() *sql.DB {
+func (s *SQLStorage) Close() error {
+	return s.db.Close()
+}
+
+func (s *SQLStorage) GetDB() *sql.DB {
+	return s.db
+}
+
+func InitDB() VaultStorage {
 	db, err := sql.Open("sqlite", "./vault.db")
 	if err != nil {
 		log.Fatal("Failed to open database:", err)
@@ -50,10 +65,5 @@ func InitDB() *sql.DB {
 		log.Fatal("Failed to create passwords table:", err)
 	}
 
-	return db
+	return &SQLStorage{db: db}
 }
-
-//zero knowledge proof
-//integratoin with websites to fetch their specific pwd validation regex
-//openpassword - open source vault
-//user pwd encryption - no compromise

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VAULTSEC | Premium Password Vault</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <!-- Login Section -->
+        <section id="login-section" class="active">
+            <div class="glass-card">
+                <div class="logo">
+                    <h1>VAULT<span>SEC</span></h1>
+                    <p>Ultra-secure local password management</p>
+                </div>
+                <div id="auth-forms">
+                    <form id="login-form">
+                        <h2>Welcome Back</h2>
+                        <input type="text" id="login-username" placeholder="Username" required>
+                        <input type="password" id="login-password" placeholder="Master Password" required>
+                        <button type="submit" class="btn-primary">Unlock Vault</button>
+                        <p class="toggle-text">Don't have an account? <a href="#" id="show-register">Register</a></p>
+                    </form>
+
+                    <form id="register-form" class="hidden">
+                        <h2>Create Account</h2>
+                        <input type="text" id="reg-username" placeholder="Username" required>
+                        <input type="password" id="reg-password" placeholder="Master Password" required>
+                        <button type="submit" class="btn-primary">Register</button>
+                        <p class="toggle-text">Already have an account? <a href="#" id="show-login">Login</a></p>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dashboard Section -->
+        <section id="dashboard-section" class="hidden">
+            <header class="glass-header">
+                <div class="header-content">
+                    <h1>VAULT<span>SEC</span></h1>
+                    <div class="user-menu">
+                        <span id="display-username">User</span>
+                        <button id="logout-btn" class="btn-secondary">Logout</button>
+                    </div>
+                </div>
+            </header>
+
+            <main>
+                <div class="action-bar">
+                    <h2>Your Vault</h2>
+                    <button id="add-pwd-btn" class="btn-primary">+ Add New</button>
+                </div>
+
+                <div id="vault-grid" class="vault-grid">
+                    <!-- Cards will be injected here -->
+                </div>
+            </main>
+        </section>
+
+        <!-- Add Password Modal -->
+        <div id="add-modal" class="modal hidden">
+            <div class="modal-content glass-card">
+                <span class="close-btn">&times;</span>
+                <h2>Add New Password</h2>
+                <form id="add-pwd-form">
+                    <div class="form-group">
+                        <label>Website / Label</label>
+                        <input type="text" id="pwd-label" placeholder="e.g. Gmail, Facebook" required>
+                    </div>
+                    <div class="form-group password-group">
+                        <label>Password</label>
+                        <div class="input-with-btn">
+                            <input type="text" id="pwd-value" placeholder="Enter or Generate" required>
+                            <button type="button" id="gen-pwd-btn" class="btn-accent">Generate</button>
+                        </div>
+                        <div id="criteria-display" class="criteria-container hidden">
+                            <span class="criteria-title">Password Requirements:</span>
+                            <ul id="criteria-list" class="criteria-list"></ul>
+                        </div>
+                        <div id="pwd-error" class="error-message"></div>
+                    </div>
+                    <button type="submit" class="btn-primary">Save to Vault</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="notification" class="notification hidden"></div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "min_length": 10,
+  "min_uppercase": 1,
+  "min_lowercase": 1,
+  "min_numbers": 1,
+  "min_special": 1,
+  "allowed_special": "!@#$%^&*"
+}

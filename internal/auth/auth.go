@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"PVRGF/internal/menu"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func StartAuth(scanner *bufio.Scanner, db *sql.DB) {
@@ -47,16 +48,29 @@ func register(scanner *bufio.Scanner, db *sql.DB) {
 	scanner.Scan()
 	password := scanner.Text()
 
-	_, err := db.Exec(
-		"INSERT INTO users(username, password) VALUES(?, ?)",
-		username, password,
-	)
-
+	err := RegisterUser(db, username, password)
 	if err != nil {
-		fmt.Println("User already exists!")
+		fmt.Printf("Registration failed: %v\n", err)
 		return
 	}
 	fmt.Println("Registration successful!")
+}
+
+func RegisterUser(db *sql.DB, username, password string) error {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("error hashing password: %w", err)
+	}
+
+	_, err = db.Exec(
+		"INSERT INTO users(username, password) VALUES(?, ?)",
+		username, string(hashedPassword),
+	)
+
+	if err != nil {
+		return fmt.Errorf("user already exists or database error")
+	}
+	return nil
 }
 
 func login(scanner *bufio.Scanner, db *sql.DB) (int, bool) {
@@ -68,18 +82,32 @@ func login(scanner *bufio.Scanner, db *sql.DB) (int, bool) {
 	scanner.Scan()
 	password := scanner.Text()
 
-	row := db.QueryRow(
-		"SELECT id FROM users WHERE username=? AND password=?",
-		username, password,
-	)
-
-	var id int
-	err := row.Scan(&id)
+	id, err := LoginUser(db, username, password)
 	if err != nil {
-		fmt.Println("Invalid credentials")
+		fmt.Printf("Login failed: %v\n", err)
 		return 0, false
 	}
 
 	fmt.Println("Login successful. Welcome to your vault!")
 	return id, true
+}
+
+func LoginUser(db *sql.DB, username, password string) (int, error) {
+	var id int
+	var hashedPassword string
+	err := db.QueryRow(
+		"SELECT id, password FROM users WHERE username=?",
+		username,
+	).Scan(&id, &hashedPassword)
+
+	if err != nil {
+		return 0, fmt.Errorf("invalid credentials")
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+	if err != nil {
+		return 0, fmt.Errorf("invalid credentials")
+	}
+
+	return id, nil
 }

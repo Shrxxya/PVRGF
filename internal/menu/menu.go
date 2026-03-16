@@ -72,7 +72,7 @@ func showAddPasswordMenu(scanner *bufio.Scanner, db *sql.DB, userID int) {
 			continue
 		}
 
-		fmt.Print("Enter Label (Gmail/Linkedin/Facebook/Instagram): ")
+		fmt.Print("Enter label (Gmail/ Instagram/ Linkedin/ Facebook): ")
 		scanner.Scan()
 		label := strings.ToLower(scanner.Text())
 
@@ -87,7 +87,7 @@ func showAddPasswordMenu(scanner *bufio.Scanner, db *sql.DB, userID int) {
 		case "1":
 			password := generateWithCriteria(criteria)
 
-			if !validatePassword(password, criteria) {
+			if !ValidatePassword(password, criteria) {
 				fmt.Println("Generated password does not meet criteria. Try again.")
 				continue
 			}
@@ -110,7 +110,7 @@ func showAddPasswordMenu(scanner *bufio.Scanner, db *sql.DB, userID int) {
 			scanner.Scan()
 			password := scanner.Text()
 
-			if !validatePassword(password, criteria) {
+			if !ValidatePassword(password, criteria) {
 				fmt.Println("\nPassword does NOT match website criteria!")
 				continue
 			}
@@ -121,44 +121,65 @@ func showAddPasswordMenu(scanner *bufio.Scanner, db *sql.DB, userID int) {
 }
 
 func savePassword(db *sql.DB, userID int, password string, label string) {
+	err := SavePasswordEntry(db, userID, label, password)
+	if err != nil {
+		fmt.Printf("Error saving password: %v\n", err)
+		return
+	}
+	fmt.Println("Password saved successfully!")
+}
+
+func SavePasswordEntry(db *sql.DB, userID int, label, password string) error {
 	_, err := db.Exec(
 		"INSERT INTO passwords(user_id, label, password, created_at) VALUES(?, ?, ?, ?)",
 		userID, label, password, time.Now(),
 	)
-
-	if err != nil {
-		fmt.Println("Error saving password:", err)
-		return
-	}
-
-	fmt.Println("Password saved successfully!")
+	return err
 }
 
 func ViewPasswords(db *sql.DB, userID int) {
-	rows, err := db.Query(
-		"SELECT id, label, password, created_at FROM passwords WHERE user_id=?",
-		userID,
-	)
-
+	passwords, err := GetPasswords(db, userID)
 	if err != nil {
-		fmt.Println("Error retrieving passwords:", err)
+		fmt.Printf("Error retrieving passwords: %v\n", err)
 		return
 	}
-	defer rows.Close()
 
 	fmt.Println("\n\tYOUR SAVED PASSWORDS")
 	fmt.Println("\t---------------------")
 
-	for rows.Next() {
-		var id int
-		var label, password string
-		var createdAt string
-
-		rows.Scan(&id, &label, &password, &createdAt)
-
+	for _, p := range passwords {
 		fmt.Printf("ID: %d\nLabel: %s\nPassword: %s\nCreated: %s\n\n",
-			id, label, password, createdAt)
+			p.ID, p.Label, p.Password, p.CreatedAt)
 	}
+}
+
+type PasswordEntry struct {
+	ID        int    `json:"id"`
+	Label     string `json:"label"`
+	Password  string `json:"password"`
+	CreatedAt string `json:"created_at"`
+}
+
+func GetPasswords(db *sql.DB, userID int) ([]PasswordEntry, error) {
+	rows, err := db.Query(
+		"SELECT id, label, password, created_at FROM passwords WHERE user_id=?",
+		userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var passwords []PasswordEntry
+	for rows.Next() {
+		var p PasswordEntry
+		err := rows.Scan(&p.ID, &p.Label, &p.Password, &p.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		passwords = append(passwords, p)
+	}
+	return passwords, nil
 }
 
 func generateRandomPassword() string {
@@ -211,28 +232,35 @@ func shuffleString(s string) string {
 	return string(runes)
 }
 
+func GeneratePassword(label string) (string, error) {
+	criteria, err := rules.LoadCriteria(label)
+	if err != nil {
+		return "", err
+	}
+	return generateWithCriteria(criteria), nil
+}
+
 func generateWithCriteria(c *rules.Criteria) string {
 	password := ""
 
-	for i := 0; i < c.MinUppercase; i++ {
+	firstCharSet := lowerCharSet + upperCharSet + numberCharSet
+	password += randomChar(firstCharSet)
+
+	for i := 1; i < c.MinUppercase; i++ {
 		password += randomChar(upperCharSet)
 	}
-
 	for i := 0; i < c.MinLowercase; i++ {
 		password += randomChar(lowerCharSet)
 	}
-
 	for i := 0; i < c.MinNumbers; i++ {
 		password += randomChar(numberCharSet)
 	}
-
 	for i := 0; i < c.MinSpecial; i++ {
 		password += randomChar(c.AllowedSpecial)
 	}
 
 	allChars := lowerCharSet + upperCharSet + numberCharSet + c.AllowedSpecial
 	remaining := c.MinLength - len(password)
-
 	for i := 0; i < remaining; i++ {
 		password += randomChar(allChars)
 	}
@@ -240,7 +268,12 @@ func generateWithCriteria(c *rules.Criteria) string {
 	return shuffleString(password)
 }
 
-func validatePassword(pass string, c *rules.Criteria) bool {
+func ValidatePassword(pass string, c *rules.Criteria) bool {
+
+	if len(pass) > 0 && strings.ContainsRune(c.AllowedSpecial, rune(pass[0])) {
+		fmt.Println("Password cannot start with a special character.")
+		return false
+	}
 
 	if len(pass) < c.MinLength {
 		return false
