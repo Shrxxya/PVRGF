@@ -5,12 +5,16 @@ import (
 	"net/http"
 
 	"PVRGF/internal/api"
+	"PVRGF/internal/concurrency"
 	"PVRGF/internal/db"
 )
 
 func main() {
 	storage := db.InitDB()
 	defer storage.Close()
+
+	// Initialize Concurrency Worker Pool (Educational: Goroutines)
+	concurrency.StartWorkerPool(5)
 
 	handler := api.NewAPIHandler(storage)
 

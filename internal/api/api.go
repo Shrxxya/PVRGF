@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"PVRGF/internal/auth"
+	"PVRGF/internal/concurrency"
 	"PVRGF/internal/db"
 	"PVRGF/internal/menu"
 	"PVRGF/internal/rules"
@@ -108,13 +109,10 @@ func (h *APIHandler) SavePassword(w http.ResponseWriter, r *http.Request) {
 	}
 	json.Unmarshal(body, &data)
 
-	// Server-side validation
-	criteria, err := rules.LoadCriteria(data.Label)
-	if err == nil {
-		if !menu.ValidatePassword(data.Password, criteria) {
-			http.Error(w, "Password does not meet criteria", http.StatusBadRequest)
-			return
-		}
+	// Server-side validation using Goroutine Worker Pool
+	if !concurrency.SubmitTask(data.Label, data.Password) {
+		http.Error(w, "Password does not meet criteria (validated via goroutine)", http.StatusBadRequest)
+		return
 	}
 
 	if err := menu.SavePasswordEntry(h.Store.GetDB(), data.UserID, data.Label, data.Password); err != nil {
@@ -141,6 +139,7 @@ func (h *APIHandler) GeneratePassword(w http.ResponseWriter, r *http.Request) {
 	resp, _ := json.Marshal(map[string]string{"password": pwd})
 	w.Write(resp)
 }
+
 
 func (h *APIHandler) GetCriteria(w http.ResponseWriter, r *http.Request) {
 	label := r.URL.Query().Get("label")

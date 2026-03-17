@@ -275,6 +275,9 @@ func ValidatePassword(pass string, c *rules.Criteria) bool {
 		return false
 	}
 
+	// Simulate heavy processing (Educational: Goroutines benefit)
+	time.Sleep(500 * time.Millisecond)
+
 	if len(pass) < c.MinLength {
 		return false
 	}
