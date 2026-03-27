@@ -7,13 +7,14 @@ import (
 	"strconv"
 
 	"PVRGF/internal/menu"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
 func StartAuth(scanner *bufio.Scanner, db *sql.DB) {
 	for {
 		fmt.Println("\n\tWELCOME TO VAULTSEC")
-		fmt.Println("\t--------------------")
+		fmt.Println("\t---------------------")
 		fmt.Println("1. Register")
 		fmt.Println("2. Login")
 		fmt.Println("3. Exit")
