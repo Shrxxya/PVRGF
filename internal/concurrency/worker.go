@@ -1,10 +1,16 @@
 package concurrency
 
 import (
+	"context"
 	"fmt"
+	"sync"
+	"PVRGF/internal/logger"
 	"PVRGF/internal/menu"
 	"PVRGF/internal/rules"
 )
+
+var appLog = logger.New("INFO")
+
 
 // ValidationTask represents a password verification request
 type ValidationTask struct {
@@ -13,27 +19,53 @@ type ValidationTask struct {
 	ResultChan chan bool
 }
 
-var taskQueue chan ValidationTask
+var (
+	taskQueue   chan ValidationTask
+	workerWg    sync.WaitGroup
+	workerCtx   context.Context
+	cancelFunc  context.CancelFunc
+)
 
-// StartWorkerPool starts a specified number of goroutines to process validation tasks
-func StartWorkerPool(numWorkers int) {
-	fmt.Printf("[WorkerPool] Starting %d workers...\n", numWorkers)
+// StartWorkerPool starts a specified number of goroutines linked to a context
+func StartWorkerPool(numWorkers int, ctx context.Context) {
+	workerCtx, cancelFunc = context.WithCancel(ctx)
+	appLog.Info("Starting WorkerPool", map[string]interface{}{"workers": numWorkers})
 	taskQueue = make(chan ValidationTask, 100)
 	for i := 0; i < numWorkers; i++ {
+		workerWg.Add(1)
 		go worker(i)
 	}
 }
 
+// StopWorkerPool gracefully shuts down all background workers
+func StopWorkerPool() {
+	appLog.Info("Initiating WorkerPool graceful shutdown", nil)
+	cancelFunc() // signals all workers to exit
+	workerWg.Wait()
+	appLog.Info("WorkerPool shut down successfully", nil)
+}
+
+
 func worker(id int) {
-	for task := range taskQueue {
-		fmt.Printf("[Worker %d] Received task for label: %s\n", id, task.Label)
-		criteria, err := rules.LoadCriteria(task.Label)
-		valid := false
-		if err == nil {
-			valid = menu.ValidatePassword(task.Password, criteria)
+	defer workerWg.Done()
+	for {
+		select {
+		case <-workerCtx.Done():
+			appLog.Info(fmt.Sprintf("Worker %d shutting down", id), nil)
+			return
+		case task := <-taskQueue:
+			appLog.Info(fmt.Sprintf("Worker %d processing task", id), map[string]interface{}{"label": task.Label})
+			criteria, err := rules.LoadCriteria(task.Label)
+			valid := false
+			if err == nil {
+				valid = menu.ValidatePassword(task.Password, criteria)
+			}
+			appLog.Info(fmt.Sprintf("Worker %d finished task", id), map[string]interface{}{
+				"label": task.Label,
+				"valid": valid,
+			})
+			task.ResultChan <- valid
 		}
-		fmt.Printf("[Worker %d] Finished task for label: %s (Valid: %v)\n", id, task.Label, valid)
-		task.ResultChan <- valid
 	}
 }
 
