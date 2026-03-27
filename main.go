@@ -18,18 +18,20 @@ func main() {
 
 	handler := api.NewAPIHandler(storage)
 
-	// API Routes
-	http.HandleFunc("/api/register", handler.Register)
-	http.HandleFunc("/api/login", handler.Login)
-	http.HandleFunc("/api/passwords", func(w http.ResponseWriter, r *http.Request) {
+	// API Routes (Protected by Middleware)
+	http.HandleFunc("/api/register", api.RateLimitMiddleware(handler.Register))
+	http.HandleFunc("/api/login", api.RateLimitMiddleware(handler.Login))
+
+	http.HandleFunc("/api/passwords", api.JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			handler.GetPasswords(w, r)
 		} else if r.Method == http.MethodPost {
 			handler.SavePassword(w, r)
 		}
-	})
-	http.HandleFunc("/api/generate", handler.GeneratePassword)
-	http.HandleFunc("/api/criteria", handler.GetCriteria)
+	}))
+
+	http.HandleFunc("/api/generate", api.JWTMiddleware(handler.GeneratePassword))
+	http.HandleFunc("/api/criteria", api.JWTMiddleware(handler.GetCriteria))
 
 	// Serve Static Files
 	fs := http.FileServer(http.Dir("./static"))

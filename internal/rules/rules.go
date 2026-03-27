@@ -2,7 +2,6 @@ package rules
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"strings"
 )
@@ -21,7 +20,15 @@ func LoadCriteria(website string) (*Criteria, error) {
 
 	file, err := os.ReadFile(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("website criteria not found")
+		// Return default criteria if specific website not found
+		return &Criteria{
+			MinLength:      8,
+			MinUppercase:   1,
+			MinLowercase:   1,
+			MinNumbers:     1,
+			MinSpecial:     1,
+			AllowedSpecial: "!@#$%^&*()",
+		}, nil
 	}
 
 	var criteria Criteria

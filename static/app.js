@@ -1,5 +1,6 @@
-let currentUserId = null;
-let currentUsername = "";
+let currentUserId = localStorage.getItem('userId');
+let currentUsername = localStorage.getItem('username');
+let jwtToken = localStorage.getItem('token');
 
 // DOM Elements
 const loginSection = document.getElementById('login-section');
@@ -42,6 +43,12 @@ loginForm.onsubmit = async (e) => {
         if (res.ok) {
             currentUserId = data.userId;
             currentUsername = username;
+            jwtToken = data.token;
+            
+            localStorage.setItem('userId', currentUserId);
+            localStorage.setItem('username', currentUsername);
+            localStorage.setItem('token', jwtToken);
+
             showDashboard();
             notify("Login successful!");
         } else {
@@ -76,6 +83,9 @@ registerForm.onsubmit = async (e) => {
 
 document.getElementById('logout-btn').onclick = () => {
     currentUserId = null;
+    currentUsername = "";
+    jwtToken = null;
+    localStorage.clear();
     dashboardSection.classList.add('hidden');
     loginSection.classList.remove('hidden');
 };
@@ -90,7 +100,10 @@ async function showDashboard() {
 
 async function loadVault() {
     try {
-        const res = await fetch(`/api/passwords?userId=${currentUserId}`);
+        const res = await fetch(`/api/passwords`, {
+            headers: { 'Authorization': `Bearer ${jwtToken}` }
+        });
+        if (res.status === 401) return handleUnauthorized();
         const passwords = await res.json();
         renderVault(passwords);
     } catch (err) {
@@ -154,7 +167,10 @@ pwdLabelInput.oninput = async () => {
     }
 
     try {
-        const res = await fetch(`/api/criteria?label=${encodeURIComponent(label)}`);
+        const res = await fetch(`/api/criteria?label=${encodeURIComponent(label)}`, {
+            headers: { 'Authorization': `Bearer ${jwtToken}` }
+        });
+        if (res.status === 401) return handleUnauthorized();
         if (res.ok) {
             currentCriteria = await res.json();
             renderCriteria(currentCriteria);
@@ -242,7 +258,10 @@ function validateWithUI() {
 
 document.getElementById('gen-pwd-btn').onclick = async () => {
     const label = document.getElementById('pwd-label').value;
-    const res = await fetch(`/api/generate?label=${encodeURIComponent(label)}`);
+    const res = await fetch(`/api/generate?label=${encodeURIComponent(label)}`, {
+        headers: { 'Authorization': `Bearer ${jwtToken}` }
+    });
+    if (res.status === 401) return handleUnauthorized();
     const data = await res.json();
     document.getElementById('pwd-value').value = data.password;
     validateWithUI();
@@ -262,8 +281,13 @@ document.getElementById('add-pwd-form').onsubmit = async (e) => {
     try {
         const res = await fetch('/api/passwords', {
             method: 'POST',
-            body: JSON.stringify({ userId: currentUserId, label, password })
+            headers: { 
+                'Authorization': `Bearer ${jwtToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ label, password })
         });
+        if (res.status === 401) return handleUnauthorized();
         if (res.ok) {
             addModal.classList.add('hidden');
             document.getElementById('add-pwd-form').reset();
@@ -291,3 +315,13 @@ function notify(msg, isError = false) {
 window.copyToClipboard = (text) => {
     navigator.clipboard.writeText(text).then(() => notify("Copied to clipboard!"));
 };
+
+function handleUnauthorized() {
+    notify("Session expired. Please login again.", true);
+    document.getElementById('logout-btn').click();
+}
+
+// Auto-login if token exists
+if (jwtToken && currentUserId) {
+    showDashboard();
+}

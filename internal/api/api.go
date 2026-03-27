@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"strconv"
 
 	"PVRGF/internal/auth"
 	"PVRGF/internal/concurrency"
@@ -69,18 +68,25 @@ func (h *APIHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	token, err := auth.GenerateToken(userID)
+	if err != nil {
+		http.Error(w, "Error generating token", http.StatusInternalServerError)
+		return
+	}
+
 	resp, _ := json.Marshal(map[string]interface{}{
 		"message": "Login successful",
 		"userId":  userID,
+		"token":   token,
 	})
+	w.Header().Set("Content-Type", "application/json")
 	w.Write(resp)
 }
 
 func (h *APIHandler) GetPasswords(w http.ResponseWriter, r *http.Request) {
-	userIDStr := r.URL.Query().Get("userId")
-	userID, err := strconv.Atoi(userIDStr)
-	if err != nil {
-		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+	userID, ok := r.Context().Value(UserIDKey).(int)
+	if !ok {
+		http.Error(w, "Unauthorized (missing userID in context)", http.StatusUnauthorized)
 		return
 	}
 
@@ -103,11 +109,16 @@ func (h *APIHandler) SavePassword(w http.ResponseWriter, r *http.Request) {
 
 	body, _ := io.ReadAll(r.Body)
 	var data struct {
-		UserID   int    `json:"userId"`
 		Label    string `json:"label"`
 		Password string `json:"password"`
 	}
 	json.Unmarshal(body, &data)
+
+	userID, ok := r.Context().Value(UserIDKey).(int)
+	if !ok {
+		http.Error(w, "Unauthorized (missing userID in context)", http.StatusUnauthorized)
+		return
+	}
 
 	// Server-side validation using Goroutine Worker Pool
 	if !concurrency.SubmitTask(data.Label, data.Password) {
@@ -115,7 +126,7 @@ func (h *APIHandler) SavePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := menu.SavePasswordEntry(h.Store.GetDB(), data.UserID, data.Label, data.Password); err != nil {
+	if err := menu.SavePasswordEntry(h.Store.GetDB(), userID, data.Label, data.Password); err != nil {
 		http.Error(w, "Error saving password", http.StatusInternalServerError)
 		return
 	}
